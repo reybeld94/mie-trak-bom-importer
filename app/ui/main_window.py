@@ -1,17 +1,22 @@
+import logging
+from pathlib import Path
+
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
+    QHBoxLayout,
     QLabel,
+    QMainWindow,
     QPushButton,
     QTableWidget,
-    QHBoxLayout,
+    QVBoxLayout,
+    QWidget,
 )
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
+        self.logger = logging.getLogger(__name__)
 
         self.setWindowTitle("Mie Trak BOM Importer")
         self.resize(1100, 700)
@@ -20,7 +25,8 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         layout = QVBoxLayout()
 
-        self.drop_label = QLabel("Drop Engineering Packing List Excel file here")
+        self.drop_label = QLabel("Drop Engineering Packing List Excel file here (.xlsx)")
+        self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet(
             "border: 2px dashed gray; padding: 30px; font-size: 16px;"
         )
@@ -29,15 +35,17 @@ class MainWindow(QMainWindow):
 
         self.table = QTableWidget()
         self.table.setColumnCount(7)
-        self.table.setHorizontalHeaderLabels([
-            "Status",
-            "Source Row",
-            "Component",
-            "Description",
-            "Qty",
-            "UOM",
-            "Message",
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Status",
+                "Source Row",
+                "Component",
+                "Description",
+                "Qty",
+                "UOM",
+                "Message",
+            ]
+        )
 
         button_layout = QHBoxLayout()
 
@@ -60,11 +68,27 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
+        self.logger.info("Main window initialized")
 
-    def dropEvent(self, event):
-        files = [url.toLocalFile() for url in event.mimeData().urls()]
-        if files:
-            self.status_label.setText(f"Loaded file: {files[0]}")
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        if event.mimeData().hasUrls():
+            files = [Path(url.toLocalFile()) for url in event.mimeData().urls()]
+            if any(file.suffix.lower() == ".xlsx" for file in files):
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dropEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        files = [Path(url.toLocalFile()) for url in event.mimeData().urls()]
+        if not files:
+            self.status_label.setText("No file dropped.")
+            return
+
+        excel_files = [file for file in files if file.suffix.lower() == ".xlsx"]
+        if not excel_files:
+            self.status_label.setText("Please drop a .xlsx file.")
+            return
+
+        selected_file = excel_files[0]
+        self.status_label.setText(f"Loaded file: {selected_file}")
+        self.logger.info("File dropped: %s", selected_file)
