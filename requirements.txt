@@ -1,0 +1,6 @@
+PySide6
+pandas
+openpyxl
+pyodbc
+python-dotenv
+pytest
